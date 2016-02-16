@@ -13,7 +13,6 @@ require 'nn'
 function gradient_check(model, h, e, criterion, input, correct_out)
     -- get parameters and gradients now, after executin local out = model:forward(input)
     local out = model:forward(input)
-    print(out)
     local err = criterion:forward(out, correct_out)
 
     -- get derivatives with respect to the criterion that we are minimizing
