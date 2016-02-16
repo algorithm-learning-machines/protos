@@ -36,8 +36,8 @@ function gradientCheck(model, criterion, inputs, outputs, epsilon)
       defGradient[i] = (j1 - j2) / (2 * epsilon)               -- compute dJdW_i
    end
 
-   local distance = torch.norm(defGradient - origGradient)
-   if distance < 1e-10 then
+   local distance = torch.norm(defGradient - origGradient) -- how close are they
+   if distance < 1e-10 then                     -- that's an arbitrary threshold
       print("Ok!")
    else
       print("Not Ok!")
@@ -47,22 +47,29 @@ function gradientCheck(model, criterion, inputs, outputs, epsilon)
    --print(torch.cat(compGradient, origGradient, 2))
 end
 
+--------------------------------------------------------------------------------
+--- Create a test case
+--------------------------------------------------------------------------------
 
-local inputSize = 25
-local outputSize = 30
+local inputSize = 25                                         -- number of inputs
+local outputSize = 30                                       -- number of outputs
 
-local model = nn.Sequential()
+local model = nn.Sequential()                                  -- create a model
 model:add(nn.Reshape(inputSize))
 model:add(nn.Linear(inputSize, outputSize))
 
-local criterion = nn.MSECriterion()
+local criterion = nn.MSECriterion()                        -- choose a criterion
 
-local testInputs = torch.rand(inputSize)
+local testInputs = torch.rand(inputSize)                        -- random inputs
 testInputs:mul(0.001)
 
-local testOutputs = torch.zeros(outputSize)
+local testOutputs = torch.zeros(outputSize)                    -- random outputs
 testOutputs[1] = 1
 
-local epsilon = 1e-4
+local epsilon = 1e-4                        -- how much to modify each parameter
+
+--------------------------------------------------------------------------------
+--- Test!
+--------------------------------------------------------------------------------
 
 gradientCheck(model, criterion, testInputs, testOutputs, epsilon)
