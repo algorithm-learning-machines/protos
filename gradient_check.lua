@@ -78,4 +78,5 @@ function test()
 end
 
 --call test
+torch.manualSeed(666) -- numărul diavolului
 test()
