@@ -25,8 +25,15 @@ opt = cmd:parse(arg)
 
 torch.manualSeed(opt.seed)
 
-game = require(opt.game)
+local Game = require(opt.game)
 
-game.displayState(game.initialState())
+opt.id = 1
+state = Game.create(opt)
+
+state:display()
+
+nextState = state:clone()
+
+nextState:display()
 
 print("Done!")

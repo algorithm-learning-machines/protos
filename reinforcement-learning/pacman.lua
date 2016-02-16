@@ -4,41 +4,51 @@
 
 require("torch")
 
-
 --------------------------------------------------------------------------------
 --- Implement pacman as a game
 --------------------------------------------------------------------------------
 
-local pacman = torch.class("pacman")
+local PacmanState = {}
+PacmanState.__index = PacmanState
 
-function pacman.initialState()          -- returns the initial state of the game
-   return {maze = "+"}
+function PacmanState.create(opt)        -- returns the initial state of the game
+   self = {}
+   setmetatable(self, PacmanState)
+   self.id = opt.id
+   return self
 end
 
-function pacman.applyMove(state, action)      -- player performs action in state
-   local rewoard = 0
+function PacmanState:applyAction(action)      -- player performs action in state
+   local reward = 0
    local next_state = {}
    return reward, next_state                    -- returns reward and next state
 end
 
-function pacman.getActions()                       -- returns the set of actions
+function PacmanState.getActions()          -- STATIC: returns the set of actions
    return {"north", "east", "south", "east"}
 end
 
-function pacman.isFinal(state)               -- checks if a given state is final
+function PacmanState:isFinal(state)          -- checks if a given state is final
    return state.isFinal
 end
 
-function pacman.displayState(state)                    -- displays a given state
-   print(state.maze)
+function PacmanState:display(state)                    -- displays a given state
+   print("--------> " .. self.id)
 end
 
-function pacman.serializeState(state)                -- serializes a given state
-   print("x")
+function PacmanState:serialize(state)                -- serializes a given state
+   return "x"
 end
 
+function PacmanState:clone()              -- creates a copy of the current state
+   return PacmanState.create({id = self.id + 1})
+end
 
-return pacman
+function PacmanState:reset()                     -- go back to the initial state
+
+end
+
+return PacmanState
 
 
 
