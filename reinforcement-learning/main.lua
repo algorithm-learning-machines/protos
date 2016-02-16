@@ -25,4 +25,8 @@ opt = cmd:parse(arg)
 
 torch.manualSeed(opt.seed)
 
+game = require(opt.game)
+
+game.displayState(game.initialState())
+
 print("Done!")

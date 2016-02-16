@@ -1,8 +1,49 @@
-require 'nn'
+--------------------------------------------------------------------------------
+--- Load modules
+--------------------------------------------------------------------------------
+
+require("torch")
+
+
+--------------------------------------------------------------------------------
+--- Implement pacman as a game
+--------------------------------------------------------------------------------
+
+local pacman = torch.class("pacman")
+
+function pacman.initialState()          -- returns the initial state of the game
+   return {maze = "+"}
+end
+
+function pacman.applyMove(state, action)      -- player performs action in state
+   local rewoard = 0
+   local next_state = {}
+   return reward, next_state                    -- returns reward and next state
+end
+
+function pacman.getActions()                       -- returns the set of actions
+   return {"north", "east", "south", "east"}
+end
+
+function pacman.isFinal(state)               -- checks if a given state is final
+   return state.isFinal
+end
+
+function pacman.displayState(state)                    -- displays a given state
+   print(state.maze)
+end
+
+function pacman.serializeState(state)                -- serializes a given state
+   print("x")
+end
+
+
+return pacman
 
 
 
 
+--[[
 -- Pacman is in a maze. He must collect magic 'o's
 -- maze is a 2D matrix with values:
 -- P -> pacman
@@ -58,19 +99,19 @@ function init_maze(dim_y, dim_x, pac_pos, monster_pos, treat_pos, wall_pos)
 
     --add the monsters
     for k,v in pairs(monster_pos) do
-        maze[v[1]][v[2]] = 'X'
+        maze[v[1] ][v[2] ] = 'X'
         monsters[#monsters + 1] = v
     end
 
     --add the treats
     for k,v in pairs(treat_pos) do
-        maze[v[1]][v[2]] = 'o'
+        maze[v[1] ][v[2] ] = 'o'
         treats[v] = treat_ttl
     end
 
     --add the walls
     for k,v in pairs(wall_pos) do
-        maze[v[1]][v[2]] = '*'
+        maze[v[1] ][v[2] ] = '*'
     end
 
 end
@@ -80,20 +121,20 @@ event_list = {"pac_moved", "pac_got_treat", "pac_got_eaten", "monsters_moved"} -
 -- performs a move on pacman, assumes move is correct
 -- returns an event corresponding the action that took place
 function move_pac(pac_move)
-    maze[pac[1]][pac[2]] = '.'
+    maze[pac[1] ][pac[2] ] = '.'
     local incs =  move_incs[pac_move]
 
     pac[1] = pac[1] + incs[1]
     pac[2] = pac[2] + incs[2]
     local ev = "pac_moved"
-    if (maze[pac[1]][pac[2]] == 'o') then -- pacman got a treat
+    if (maze[pac[1] ][pac[2] ] == 'o') then -- pacman got a treat
         ev = "pac_got_treat"
         treats[{pac}] = nil -- remove treat from dict
-    elseif (maze[pac[1]][pac[2]] == 'X') then
+    elseif (maze[pac[1] ][pac[2] ] == 'X') then
         ev = "pac_got_eaten"
     end
 
-    maze[pac[1]][pac[2]] = 'P' -- move the pacman
+    maze[pac[1] ][pac[2] ] = 'P' -- move the pacman
 
     return ev
 
@@ -191,10 +232,10 @@ function gen_rand_pac_move()
     end
 
     local move_index = math.random(#move_list - 1) -- do not try nop 
-    local move_inc = move_incs[move_list[move_index]]
+    local move_inc = move_incs[move_list[move_index] ]
     while (not is_valid_move(pac, move_list[move_index], false)) do
         move_index = math.random(#move_list - 1)
-        move_inc = move_incs[move_list[move_index]]
+        move_inc = move_incs[move_list[move_index] ]
     end
 
     return move_list[move_index]
@@ -219,10 +260,10 @@ function gen_rand_monster_move(monster_index)
     end
 
     local move_index = math.random(#move_list - 1) -- do not try nop 
-    local move_inc = move_incs[move_list[move_index]]
+    local move_inc = move_incs[move_list[move_index] ]
     while (not is_valid_move(m_pos, move_list[move_index], true)) do
         move_index = math.random(#move_list - 1)
-        move_inc = move_incs[move_list[move_index]]
+        move_inc = move_incs[move_list[move_index] ]
     end
 
     return move_list[move_index]
@@ -296,7 +337,7 @@ function decay_treats()
     local num_treats = 0 -- treats that will be respawned
     for k,v in pairs(treats) do
         if (treats[k] <= 1) then
-            maze[k[1]][k[2]] = '.'
+            maze[k[1] ][k[2] ] = '.'
             treats[k] = nil
             num_treats = num_treats + 1
         else
@@ -308,7 +349,7 @@ function decay_treats()
     for i=1,num_treats do
         local ix = math.random(#free_cells)
         local pos = free_cells[ix]
-        maze[pos[1]][pos[2]] = 'o'
+        maze[pos[1] ][pos[2] ] = 'o'
         table.remove(free_cells, ix)
 
         treats[{pos[1],pos[2]}] = treat_ttl
@@ -339,3 +380,4 @@ function play()
 end
 -- let the game begin
 play()
+--]]
