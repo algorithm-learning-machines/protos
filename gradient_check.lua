@@ -12,8 +12,11 @@ require 'nn'
 -- returns: true if gradients are computed correctly, false otherwise
 function gradient_check(model, h, e, criterion, input, correct_out)
     -- get parameters and gradients now, after executin local out = model:forward(input)
+    local W, dW = model:getParameters()
+    dW:zero() -- zero gradients
     local out = model:forward(input)
     local err = criterion:forward(out, correct_out)
+
 
     -- get derivatives with respect to the criterion that we are minimizing
     local df_do = criterion:backward(out, correct_out)
@@ -78,5 +81,4 @@ function test()
 end
 
 --call test
-torch.manualSeed(666) -- numărul diavolului
 test()
