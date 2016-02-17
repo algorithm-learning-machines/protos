@@ -119,9 +119,9 @@ function PacmanState.create(opt)        -- returns the initial state of the game
       end
 
       --- 2. The walls
-      if opt.walls then
+      if opt.walls ~= "random" then
          for coordsString in string.gmatch(opt.walls, "[%d]+,[%d]+") do
-            local coords = coordsSring:split(",")
+            local coords = coordsString:split(",")
             local y = tonumber(coords[1])
             local x = tonumber(coords[2])
             self.maze[y][x] = WALL
@@ -200,6 +200,7 @@ function PacmanState.create(opt)        -- returns the initial state of the game
 
       --- 6. Miscellaneous
       self.score = 0
+      self.step = 0
       self.lives = pacmanLives
       self.lastAction = nil
    end
@@ -228,7 +229,7 @@ function PacmanState:__movePacman(action)
       self.maze[self.pacman.y][self.pacman.x] = PACMAN               -- respawns
       return -10, "Pacman ran into monster!"
    elseif self.maze[newY][newX] == TREAT then            -- pacman grabbed treat
-      self.score = self.score + 1
+      self.score = self.score + 2
       self.pacman.y, self.pacman.x = newY, newX
       self.maze[self.pacman.y][self.pacman.x] = PACMAN
       return 1, "Pacman grabbed a cookie!"
@@ -272,7 +273,7 @@ end
 
 function PacmanState:__moveMonsters()
    local reward = 0
-   local message = "monsters chase the pacman"
+   local message = "Monsters chase the pacman."
    local monstersOrder = torch.randperm(#(self.monsters))
    for i = 1, #(self.monsters) do
       local idx = monstersOrder[i]
@@ -290,7 +291,7 @@ function PacmanState:__moveMonsters()
          self.pacman.y, self.pacman.x = self:__getRandomEmptyCell()
          self.maze[self.pacman.y][self.pacman.x] = PACMAN            -- respawns
          reward = reward - 10
-         message = "monsters got the pacman"
+         message = "Monsters got the pacman."
       else
          assert(false)
       end
@@ -314,14 +315,13 @@ function PacmanState:__decayTreats()
    end
 end
 
-
 function PacmanState:applyAction(action)      -- player performs action in state
    local reward1, message1 = self:__movePacman(action)            -- move pacman
    local reward2, message2 = self:__moveMonsters()              -- move monsters
    self:__decayTreats()                                          -- decay treats
-   local reward = reward1 + reward2
-   local message = message1 .. message2
-   -- self.t = self.t + 1
+   local reward = reward1 + reward2                      -- compute total reward
+   local message = message1 .. " " .. message2
+   self.step = self.step + 1
    return reward, message                                      -- returns reward
 end
 
@@ -330,7 +330,7 @@ function PacmanState.getActions()          -- STATIC: returns the set of actions
 end
 
 function PacmanState:isFinal()               -- checks if a given state is final
-   return self.lives < 1
+   return (self.lives < 1) or (self.step >= 100)
 end
 
 function PacmanState:__getScreen()
