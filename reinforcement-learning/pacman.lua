@@ -44,7 +44,7 @@ local TREAT = "$"                                                     -- delight
 --- Miscellaneous
 
 local pacmanLives = 3                         -- how many live does the guy have
-local treatLife = 7                     -- for how many rounds does a candy live
+local treatLife = 10                    -- for how many rounds does a candy live
 
 --------------------------------------------------------------------------------
 --- The PacmanState class
@@ -377,11 +377,9 @@ end
 function PacmanState:serialize()                     -- serializes a given state
    local stateString = ""
    for row = 1, self.height do
-      local cells = self.maze[row]
-      for col = 1, self.width do stateString = stateString .. cells[col]; end
-      stateString = stateString .. "|"
+      stateString = stateString .. table.concat(self.maze[row])
    end
-   stateString = stateString .. self.score .. "|" .. self.lives
+   stateString = stateString .. "|" .. self.lives
    return stateString
 end
 
@@ -390,6 +388,7 @@ function PacmanState:clone()              -- creates a copy of the current state
 end
 
 function PacmanState:reset()                     -- go back to the initial state
+   assert(false, "Not implemented yet!")
    -- TODO: not implemented
 end
 
