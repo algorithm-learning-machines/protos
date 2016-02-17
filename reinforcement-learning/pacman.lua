@@ -290,9 +290,27 @@ function PacmanState:__moveMonsters()
    return reward, message
 end
 
+function PacmanState:__decayTreats()
+   for i = 1, #(self.treats) do                              -- check all treats
+      local treat = self.treats[i]
+      if treat.life <= 1 or (self.maze[treat.y][treat.x] ~= TREAT) then
+         if self.maze[treat.y][treat.x] == TREAT then           -- if treat aged
+            self.maze[treat.y][treat.x] = EMPTY           -- erase previous cell
+         end
+         treat.y, treat.x = self:__getRandomEmptyCell()
+         self.maze[treat.y][treat.x] = TREAT
+         treat.life = treatLife
+      else                                                     -- treat survived
+         treat.life = treat.life - 1
+      end
+   end
+end
+
+
 function PacmanState:applyAction(action)      -- player performs action in state
-   local reward1, message1 = self:__movePacman(action)
-   local reward2, message2 = self:__moveMonsters()
+   local reward1, message1 = self:__movePacman(action)            -- move pacman
+   local reward2, message2 = self:__moveMonsters()              -- move monsters
+   self:__decayTreats()                                          -- decay treats
    local reward = reward1 + reward2
    local message = message1 .. message2
    -- self.t = self.t + 1
@@ -402,31 +420,6 @@ function get_free_positions()
     end
     return free_cells
 end
-
--- reduce ttls for treats; those that disappear are respawned
-function decay_treats()
-    local num_treats = 0 -- treats that will be respawned
-    for k,v in pairs(treats) do
-        if (treats[k] <= 1) then
-            maze[k[1] ][k[2] ] = '.'
-            treats[k] = nil
-            num_treats = num_treats + 1
-        else
-            treats[k] = treats[k] - 1
-        end
-    end
-
-    local free_cells = get_free_positions()
-    for i=1,num_treats do
-        local ix = math.random(#free_cells)
-        local pos = free_cells[ix]
-        maze[pos[1] ][pos[2] ] = 'o'
-        table.remove(free_cells, ix)
-
-        treats[{pos[1],pos[2]}] = treat_ttl
-    end
-end
-
 
 -- launch an iteration of the game
 -- main function
