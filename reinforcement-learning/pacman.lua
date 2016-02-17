@@ -3,49 +3,276 @@
 --------------------------------------------------------------------------------
 
 require("torch")
+local util = require("util")
+
+--------------------------------------------------------------------------------
+--- Description
+
+--- Pacman is in a maze. He must collect magic '$'s
+--- Pacman and the monsters take turns.
+--- After pacman and monsters made their move, treats are 'decayed'
+--- i.e. after a predefined time, treats disappear and regenerate in new
+--- empty positions.
+--------------------------------------------------------------------------------
+
 
 --------------------------------------------------------------------------------
 --- Implement pacman as a game
+--------------------------------------------------------------------------------
+
+--- Actions
+
+local actionNames = {"north", "east", "south", "west", "noop"}
+local getActionNames = function() return util.deepcopy(actionNames); end
+
+local actionEffects = {          -- the effects of an action on pacman's postion
+   north = { dy = -1, dx =  0},                                    -- move north
+   east  = { dy =  0, dx =  1},                                     -- move east
+   south = { dy =  1, dx =  0},                                    -- move south
+   west  = { dy =  1, dx = -1},                                     -- move west
+   noop  = { dy =  0, dx =  0}                                     -- do nothing
+}
+
+--- Cells
+
+local EMPTY = "."                            -- empty cell, anything can go here
+local WALL = "+"                                         -- great asciinese wall
+local PACMAN = "P"                                                   -- our hero
+local MONSTER = "M"                        -- bad bad monster, run away from him
+local TREAT = "$"                                                     -- delight
+
+--- Miscellaneous
+
+local pacmanLives = 3                         -- how many live does the guy have
+local treatLife = 7                     -- for how many rounds does a candy live
+
+--------------------------------------------------------------------------------
+--- The PacmanState class
 --------------------------------------------------------------------------------
 
 local PacmanState = {}
 PacmanState.__index = PacmanState
 
 function PacmanState.create(opt)        -- returns the initial state of the game
+   -----------------------------------------------------------------------------
+   --- Create "object"
+   -----------------------------------------------------------------------------
    self = {}
    setmetatable(self, PacmanState)
-   self.id = opt.id
+   -----------------------------------------------------------------------------
+   --- Configure fields
+   -----------------------------------------------------------------------------
+   if getmetatable(opt) == PacmanState then                 -- used when cloning
+
+      --- 1. Copy maze
+      self.height = opt.height
+      self.width = opt.width
+      self.maze = {}
+      for row, originalCells in pairs(opt.maze) do
+         local cells = {}
+         for col, cell in pairs(originalCells) do cells[col] = cell end
+         self.maze[row] = cells
+      end
+
+      --- 2. The walls are the same
+
+      --- 3. The monsters
+      self.monsters = util.deepcopy(opt.monsters)
+
+      --- 4. The monsters
+      self.pacman = util.deepcopy(opt.pacman)
+
+      --- 5. The treats
+      self.treats = util.deepcopy(opt.treats)
+
+      --- 6. Miscellaneous
+      self.score = opt.score
+      self.lives = opt.lives
+      self.lastAction = opt.lastAction
+   else                                                     -- used with options
+
+      --- 1. Create maze
+      self.height = opt.height or 10
+      self.width = opt.width or 10
+      self.maze = {}
+      for row = 1, self.height do
+         local cells = {}
+         for col = 1, self.width do cells[#cells+1] = EMPTY; end
+         self.maze[#(self.maze)+1] = cells
+      end
+
+      --- 2. The walls
+      if opt.walls then
+         for coordsString in string.gmatch(opt.walls, "[%d]+,[%d]+") do
+            local coords = coordsSring:split(",")
+            local y = tonumber(coords[1])
+            local x = tonumber(coords[2])
+            self.maze[y][x] = WALL
+         end
+      else                                              -- put some random walls
+         if self.width > 4 then
+            local row = torch.random(self.height - 2) + 1
+            local startCol = torch.random(self.width - 4) + 1
+            local stopCol = torch.random(self.width - startCol - 2) + startCol
+            for col = startCol, stopCol do self.maze[row][col] = WALL; end
+         end -- if self.width > 4
+         if self.height > 4 then
+            local col = torch.random(self.width - 2) + 1
+            local startRow = torch.random(self.height - 4) + 1
+            local stopRow = torch.random(self.height - startRow - 2) + startRow
+            for row = startRow, stopRow do self.maze[row][col] = WALL; end
+         end -- if self.height > 4
+      end
+
+      --- 3. The monsters
+      self.monsters = {}
+      if opt.monsters then
+         for coordsString in string.gmatch(opt.monsters, "[%d]+,[%d]+") do
+            local coords = coordsSring:split(",")
+            local row = tonumber(coords[1])
+            local col = tonumber(coords[2])
+            assert(self.maze[row][col] == "EMPTY", "cannot place monster there")
+            self.maze[row][col] = MONSTER
+            self.monsters[#(self.monsters)+1] = {y = row, x = col}
+         end
+      else                                           -- put some random monsters
+         local monstersNo = opt.monstersNo or 4
+         while monstersNo > 0 do
+            local row = torch.random(self.height)
+            local col = torch.random(self.width)
+            if self.maze[row][col] == EMPTY then
+               self.maze[row][col] = MONSTER
+               self.monsters[#(self.monsters)+1] = {y = row, x = col}
+               monstersNo = monstersNo - 1
+            end -- if EMPTY
+         end -- while monstersNo > 0
+      end
+
+      --- 4. The Pacman
+      if opt.pacman then
+         local coords = opt.pacman:split(",")
+         local row = tonumber(coords[1])
+         local col = tonumber(coords[2])
+         assert(self.maze[row][col] == "EMPTY", "cannot place pacman there")
+         self.maze[row][col] = PACMAN
+         self.pacman = {y = row, x = col}
+      else                                  -- place the pacman in a random cell
+         while not self.pacman do
+            local row = torch.random(self.height)
+            local col = torch.random(self.width)
+            if self.maze[row][col] == EMPTY then
+               self.maze[row][col] = PACMAN
+               self.pacman = {y = row, x = col}
+            end -- if EMPTY
+         end -- while not self.pacman
+      end
+
+      --- 5. The treats
+      self.treats = {}
+      if opt.treats then
+         for coordsString in string.gmatch(opt.treats, "[%d]+,[%d]+") do
+            local coords = coordsSring:split(",")
+            local row = tonumber(coords[1])
+            local col = tonumber(coords[2])
+            -- treats spawn in empty cells
+            assert(self.maze[row][col] == "EMPTY", "cannot place treat there")
+            self.maze[row][col] = TREAT
+            self.treats[#(self.treats)+1] = {y= row, x= col, life= treatLife}
+         end
+      else                                           -- put some random monsters
+         local treatsNo = opt.treatsNo or 4
+         while treatsNo > 0 do
+            local row = torch.random(self.height)
+            local col = torch.random(self.width)
+            if self.maze[row][col] == EMPTY then
+               self.maze[row][col] = TREAT
+               self.treats[#(self.treats)+1] = {y= row, x= col, life= treatLife}
+               treatsNo = treatsNo - 1
+            end -- if EMPTY
+         end -- while monstersNo > 0
+      end
+
+      --- 6. Miscellaneous
+      self.score = 0
+      self.lives = pacmanLives
+      self.lastAction = nil
+   end
+
    return self
 end
 
 function PacmanState:applyAction(action)      -- player performs action in state
-   local reward = 0
-   local next_state = {}
-   return reward, next_state                    -- returns reward and next state
+   print(actionNames[action])
+   -- self.t = self.t + 1
+   return reward                                               -- returns reward
 end
 
 function PacmanState.getActions()          -- STATIC: returns the set of actions
-   return {"north", "east", "south", "east"}
+   return getActionNames()
 end
 
-function PacmanState:isFinal(state)          -- checks if a given state is final
-   return state.isFinal
+function PacmanState:isFinal()               -- checks if a given state is final
+   return self.lives == 0
 end
 
-function PacmanState:display(state)                    -- displays a given state
-   print("--------> " .. self.id)
+function PacmanState:__getScreen()
+
+   screen = "=="                                                   -- top border
+   for i = 1, self.width do screen = screen .. "==" end
+   screen = screen .. "=\n"
+
+   local fmt = "Score:%" .. (self.width * 2 + 3 - 6) .. "d\n"           -- score
+   screen = screen .. string.format(fmt, self.score)
+
+   fmt = "Lives:%" .. (self.width * 2 + 3 - 6) .. "d\n"            -- lives left
+   screen = screen .. string.format(fmt, self.lives)
+
+   fmt = "Last:%" .. (self.width * 2 + 3 - 5) .. "s\n"            -- last action
+   screen = screen .. string.format(fmt, self.lastAction or "")
+
+   screen = screen .. "+-"                                           -- top wall
+   for i = 1, self.width do screen = screen .. "--" end
+   screen = screen .. "+\n"
+
+   for row = 1, self.height do                                       -- the rows
+      screen = screen .. "| "
+      local cells = self.maze[row]
+      for col = 1, self.width do screen = screen .. cells[col] .. " "; end
+      screen = screen .. "|\n"
+   end
+
+   screen = screen .. "+-"                                        -- bottom wall
+   for i = 1, self.width do screen = screen .. "--" end
+   screen = screen .. "+\n"
+
+   screen = screen .. "=="                                      -- bottom border
+   for i = 1, self.width do screen = screen .. "==" end
+   screen = screen .. "=\n"
+
+   return screen
 end
 
-function PacmanState:serialize(state)                -- serializes a given state
-   return "x"
+function PacmanState:display()                         -- displays a given state
+   io.write(self:__getScreen())
+end
+
+function PacmanState:serialize()                     -- serializes a given state
+   local stateString = ""
+   for row = 1, self.height do
+      local cells = self.maze[row]
+      for col = 1, self.width do stateString = stateString .. cells[col]; end
+      stateString = stateString .. "|"
+   end
+   stateString = stateString .. self.score .. "|" .. self.lives
+   return stateString
 end
 
 function PacmanState:clone()              -- creates a copy of the current state
-   return PacmanState.create({id = self.id + 1})
+   return PacmanState.create(self)
 end
 
 function PacmanState:reset()                     -- go back to the initial state
-
+   -- TODO: not implemented
 end
 
 return PacmanState
@@ -54,77 +281,6 @@ return PacmanState
 
 
 --[[
--- Pacman is in a maze. He must collect magic 'o's
--- maze is a 2D matrix with values:
--- P -> pacman
--- o -> delight
--- X -> bad bad monster, run away from him
--- * -> great asciinese wall
--- . -> empty cell, anything can go here
-
--- Pacman and the monsters take turns
--- After pacman and monsters made their move, treats are 'decayed'
--- i.e. after a predefined time, treats disappear and regenerate in new
--- positions
-
-
--- globals
-maze =  {}
-pac = {} -- current position of pacman
-monsters = {} -- current positions of monsters, entries of type: {monster_index: {x,y}}
-treats = {} -- current positions of treats and corresponding ttls: {{y,x} : ttl}
-treat_ttl = 1 -- treats have a time after which they disappear
-move_list = {"up", "down", "left", "right", "nop"} -- list of possible moves in maze
-move_incs = {up={-1, 0}, down={1, 0}, left={0, -1}, right={0, 1}, nop={0, 0}} -- corresponding indexes
-
-score = 0 -- +1 every time pacman gets a treat; -1 every time he dies
--- end global section
-
--- initialize maze
--- dim_x -> width of maze; single number
--- dim_y -> height of maze; single number
--- pac pos -> initial position of pacman; table with position {y, x}
--- monster_pos -> initial positions of monsters; table with positions {{y,x}}
--- treat_pos ->  initial positions of treats; table with positions {{y,x}}
-function init_maze(dim_y, dim_x, pac_pos, monster_pos, treat_pos, wall_pos)
-    --get rid of prev values
-    maze =  {}
-    pac = {}
-    monsters = {}
-    treats = {}
-
-    -- initialize empty maze
-    for i = 1,dim_y do
-        maze[i] = {}
-        for j = 1,dim_x do
-            maze[i][j] = '.' -- initially empty
-        end
-    end
-
-    --add the pacman
-    local pac_y = pac_pos[1]
-    local pac_x = pac_pos[2]
-    maze[pac_y][pac_x] = 'P'
-    pac = pac_pos
-
-    --add the monsters
-    for k,v in pairs(monster_pos) do
-        maze[v[1] ][v[2] ] = 'X'
-        monsters[#monsters + 1] = v
-    end
-
-    --add the treats
-    for k,v in pairs(treat_pos) do
-        maze[v[1] ][v[2] ] = 'o'
-        treats[v] = treat_ttl
-    end
-
-    --add the walls
-    for k,v in pairs(wall_pos) do
-        maze[v[1] ][v[2] ] = '*'
-    end
-
-end
 
 event_list = {"pac_moved", "pac_got_treat", "pac_got_eaten", "monsters_moved"} -- list of events, for reference
 
