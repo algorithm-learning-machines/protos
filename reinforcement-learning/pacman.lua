@@ -155,6 +155,9 @@ function PacmanState.create(opt)        -- returns the initial state of the game
       end
       self.radius = opt.radius or 0
 
+      PacmanState.screenHeight = (self.height + 1) * 2
+      PacmanState.screenWidth = (self.width + 1) * 2
+
       --- 2. The walls
       if opt.walls ~= "random" then
          for coordsString in string.gmatch(opt.walls, "[%d]+,[%d]+") do
@@ -465,6 +468,27 @@ end
 
 function PacmanState:getScore()
    return self.score
+end
+
+function PacmanState:screen()
+   local colors = {}
+   colors[EMPTY] = 1
+   colors[WALL] = 0
+   colors[PACMAN] = 2
+   colors[MONSTER] = 3
+   colors[TREAT] = 4
+
+   local screen = torch.Tensor(1, self.screenHeight, self.screenWidth)
+   screen:fill(colors[WALL])
+
+   for row, cells in pairs(self.maze) do
+      for col, cell in pairs(cells) do
+         local color = colors[cell]
+         screen[{{},{row * 2, row * 2 + 1}, {col * 2, col * 2 + 1}}]:fill(color)
+      end
+   end
+
+   return screen
 end
 
 return PacmanState
