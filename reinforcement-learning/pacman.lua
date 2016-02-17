@@ -61,6 +61,17 @@ PacmanState.WEST = 4
 PacmanState.NOOP = 5
 
 function PacmanState:__getRandomEmptyCell()
+   local freeCells = {}
+   for row = 1, self.height do
+      for col = 1, self.width do
+         if self.maze[row][col] == EMPTY then
+            table.insert(freeCells, {row, col})
+         end
+      end
+   end
+   local cell = freeCells[torch.random(#freeCells)]
+   return cell[1], cell[2]
+   --[[
    local row = torch.random(self.height)
    local col = torch.random(self.width)
    while self.maze[row][col] ~= EMPTY do
@@ -68,6 +79,7 @@ function PacmanState:__getRandomEmptyCell()
       col = torch.random(self.width)
    end
    return row, col
+   --]]
 end
 
 function PacmanState.create(opt)        -- returns the initial state of the game
@@ -110,14 +122,31 @@ function PacmanState.create(opt)        -- returns the initial state of the game
    else                                                     -- used with options
 
       --- 1. Create maze
-      self.height = opt.height or 10
-      self.width = opt.width or 10
-      self.maze = {}
-      for row = 1, self.height do
-         local cells = {}
-         for col = 1, self.width do cells[#cells+1] = EMPTY; end
-         self.maze[#(self.maze)+1] = cells
+      if opt.map == "" then
+         self.height = opt.height or 10
+         self.width = opt.width or 10
+         self.maze = {}
+         for row = 1, self.height do
+            local cells = {}
+            for col = 1, self.width do cells[#cells+1] = EMPTY; end
+            self.maze[#(self.maze)+1] = cells
+         end
+      else
+         local f = assert(io.open(opt.map, "r"))                    -- open file
+         self.maze = {}                                -- initialize empty table
+         rawdata = f:read()                           -- read one line from file
+         repeat
+            local cells = {}            -- intialize a table for the current row
+            rawdata:gsub(".",function(c) table.insert(cells,c) end)
+            self.width = self.width or (#cells)             -- get the row width
+            assert(self.width == (#cells))  -- check t. all rows have same width
+            table.insert(self.maze, cells)
+            rawdata = f:read()                             -- read the next line
+         until not rawdata
+         f:close()                                             -- close the file
+         self.height = #(self.maze)
       end
+
       self.radius = opt.radius or 0
 
       --- 2. The walls
@@ -433,62 +462,3 @@ function PacmanState:getScore()
 end
 
 return PacmanState
-
-
-
---[[
-
-event_list = {"pac_moved", "pac_got_treat", "pac_got_eaten", "monsters_moved"} -- list of events, for reference
-
-
--- reinit maze to initial state
-function re_init()
-    local pac_pos = {3,4}
-    local dim_x = 8
-    local dim_y = 8
-    local treat_pos = {{6,6}}
-    local monster_pos = {{4,6}, {2,2}}
-    local wall_pos = {{3,3}, {4,3}, {5,3}}
-    init_maze(dim_y, dim_x, pac_pos, monster_pos, treat_pos, wall_pos)
-end
-
-
--- get all free cells in maze
-function get_free_positions()
-    local dim_y = #maze
-    local dim_x = #maze[1]
-    local free_cells = {}
-    for i=1,dim_y do
-        for j=1,dim_x do
-            if (maze[i][j] == ".") then
-                free_cells[#free_cells + 1] = {i,j}
-            end
-        end
-    end
-    return free_cells
-end
-
--- launch an iteration of the game
--- main function
-function play()
-    local pac_pos = {3,4}
-    local dim_x = 8
-    local dim_y = 8
-    local treat_pos = {{6,6}}
-    local monster_pos = {{4,6}, {2,2}}
-    local wall_pos = {{3,3}, {4,3}, {5,3}}
-    init_maze(dim_y, dim_x, pac_pos, monster_pos, treat_pos, wall_pos)
-    print_maze()
-    while(true) do
-        io.write("----------------------\n")
-        pac_turn()
-        io.stdin:read'*l'
-
-        monster_turn()
-        io.stdin:read'*l'
-        decay_treats()
-    end
-end
--- let the game begin
-play()
---]]

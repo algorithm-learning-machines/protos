@@ -38,6 +38,7 @@ cmd:option("-epsilon", 0.1, "Probability to choose a random action")
 
 cmd:option("-height", 10, "Maze height")
 cmd:option("-width", 10, "Maze width")
+cmd:option("-map", "", "Map to use to read height, width and walls")
 cmd:option("-monstersNo", 4, "Number of monsters")
 cmd:option("-treatsNo", 4, "Number of monsters")
 cmd:option("-walls", "random", "Where to place walls (e.g. '1,2;1,3;2,4'")
