@@ -132,21 +132,27 @@ function PacmanState.create(opt)        -- returns the initial state of the game
             self.maze[#(self.maze)+1] = cells
          end
       else
-         local f = assert(io.open(opt.map, "r"))                    -- open file
-         self.maze = {}                                -- initialize empty table
-         rawdata = f:read()                           -- read one line from file
-         repeat
-            local cells = {}            -- intialize a table for the current row
-            rawdata:gsub(".",function(c) table.insert(cells,c) end)
-            self.width = self.width or (#cells)             -- get the row width
-            assert(self.width == (#cells))  -- check t. all rows have same width
-            table.insert(self.maze, cells)
-            rawdata = f:read()                             -- read the next line
-         until not rawdata
-         f:close()                                             -- close the file
-         self.height = #(self.maze)
+         if not PacmanState.map then
+            local f = assert(io.open(opt.map, "r"))                 -- open file
+            self.maze = {}                             -- initialize empty table
+            rawdata = f:read()                        -- read one line from file
+            repeat
+               local cells = {}         -- intialize a table for the current row
+               rawdata:gsub(".",function(c) table.insert(cells,c) end)
+               self.width = self.width or (#cells)          -- get the row width
+               assert(self.width == (#cells)) -- check that rows have same width
+               table.insert(self.maze, cells)
+               rawdata = f:read()                          -- read the next line
+            until not rawdata
+            f:close()                                          -- close the file
+            self.height = #(self.maze)
+            PacmanState.maze = self.maze
+         else
+            self.maze = util.deepcopy(PacmanState.map)
+            self.height = #(self.maze)
+            self.width = #(self.maze[1])
+         end
       end
-
       self.radius = opt.radius or 0
 
       --- 2. The walls
