@@ -46,12 +46,13 @@ end
 
 state = Game.create(opt)
 state:display()
-local i = 8
+local i = 82
 while not state:isFinal() and i > 4 do
    i = i - 1
    local action = player(state)
    oldState = state:clone()
-   reward = oldState:applyAction(action)
+   reward, message = oldState:applyAction(action)
+   print(message)
    oldState:display()
    state = oldState
 end

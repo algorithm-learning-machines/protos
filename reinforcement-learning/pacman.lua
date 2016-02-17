@@ -53,6 +53,16 @@ local treatLife = 7                     -- for how many rounds does a candy live
 local PacmanState = {}
 PacmanState.__index = PacmanState
 
+function PacmanState:__getRandomEmptyCell()
+   local row = torch.random(self.height)
+   local col = torch.random(self.width)
+   while self.maze[row][col] ~= EMPTY do
+      row = torch.random(self.height)
+      col = torch.random(self.width)
+   end
+   return row, col
+end
+
 function PacmanState.create(opt)        -- returns the initial state of the game
    -----------------------------------------------------------------------------
    --- Create "object"
@@ -138,13 +148,10 @@ function PacmanState.create(opt)        -- returns the initial state of the game
       else                                           -- put some random monsters
          local monstersNo = opt.monstersNo or 4
          while monstersNo > 0 do
-            local row = torch.random(self.height)
-            local col = torch.random(self.width)
-            if self.maze[row][col] == EMPTY then
-               self.maze[row][col] = MONSTER
-               self.monsters[#(self.monsters)+1] = {y = row, x = col}
-               monstersNo = monstersNo - 1
-            end -- if EMPTY
+            local row, col = self:__getRandomEmptyCell()
+            self.maze[row][col] = MONSTER
+            self.monsters[#(self.monsters)+1] = {y = row, x = col}
+            monstersNo = monstersNo - 1
          end -- while monstersNo > 0
       end
 
@@ -157,14 +164,9 @@ function PacmanState.create(opt)        -- returns the initial state of the game
          self.maze[row][col] = PACMAN
          self.pacman = {y = row, x = col}
       else                                  -- place the pacman in a random cell
-         while not self.pacman do
-            local row = torch.random(self.height)
-            local col = torch.random(self.width)
-            if self.maze[row][col] == EMPTY then
-               self.maze[row][col] = PACMAN
-               self.pacman = {y = row, x = col}
-            end -- if EMPTY
-         end -- while not self.pacman
+         local row, col = self:__getRandomEmptyCell()
+         self.maze[row][col] = PACMAN
+         self.pacman = {y = row, x = col}
       end
 
       --- 5. The treats
@@ -182,13 +184,10 @@ function PacmanState.create(opt)        -- returns the initial state of the game
       else                                           -- put some random monsters
          local treatsNo = opt.treatsNo or 4
          while treatsNo > 0 do
-            local row = torch.random(self.height)
-            local col = torch.random(self.width)
-            if self.maze[row][col] == EMPTY then
-               self.maze[row][col] = TREAT
-               self.treats[#(self.treats)+1] = {y= row, x= col, life= treatLife}
-               treatsNo = treatsNo - 1
-            end -- if EMPTY
+            local row, col = self:__getRandomEmptyCell()
+            self.maze[row][col] = TREAT
+            self.treats[#(self.treats)+1] = {y= row, x= col, life= treatLife}
+            treatsNo = treatsNo - 1
          end -- while monstersNo > 0
       end
 
@@ -201,10 +200,38 @@ function PacmanState.create(opt)        -- returns the initial state of the game
    return self
 end
 
+function PacmanState:__movePacman(action)
+   self.lastAction = actionNames[action]
+   self.maze[self.pacman.y][self.pacman.x] = EMPTY        -- erase previous cell
+   local dCoords = actionEffects[actionNames[action]]
+   local newY = dCoords.dy + self.pacman.y                 -- compute target row
+   local newX = dCoords.dx + self.pacman.x                 -- compute target col
+
+   if newY < 1 or newY > self.height or newX < 1 or newX > self.width then
+      self.maze[self.pacman.y][self.pacman.x] = PACMAN           -- pacman stays
+      return 0, "Pacman hit the wall!"
+   elseif self.maze[newY][newX] == EMPTY then                     -- boring move
+      self.pacman.y, self.pacman.x = newY, newX
+      self.maze[self.pacman.y][self.pacman.x] = PACMAN
+      return 0, "Pacman moved to new cell."
+   elseif self.maze[newY][newX] == MONSTER then     -- pacman stepped on monster
+      self.lives = self.lives - 1                                -- he dies once
+      self.score = self.score - 10                            -- loses 10 points
+      self.pacman.y, self.pacman.x = self:__getRandomEmptyCell()
+      self.maze[self.pacman.y][self.pacman.x] = PACMAN               -- respawns
+      return -10, "Pacman ran into monster!"
+   elseif self.maze[newY][newX] == TREAT then            -- pacman grabbed treat
+      self.score = self.score + 1
+      self.pacman.y, self.pacman.x = self:__getRandomEmptyCell()
+      self.maze[self.pacman.y][self.pacman.x] = PACMAN
+      return 1, "Pacman grabbed a cookie!"
+   end
+end
+
 function PacmanState:applyAction(action)      -- player performs action in state
-   print(actionNames[action])
+   reward, message = self:__movePacman(action)
    -- self.t = self.t + 1
-   return reward                                               -- returns reward
+   return reward, message                                      -- returns reward
 end
 
 function PacmanState.getActions()          -- STATIC: returns the set of actions
@@ -279,32 +306,10 @@ return PacmanState
 
 
 
-
 --[[
 
 event_list = {"pac_moved", "pac_got_treat", "pac_got_eaten", "monsters_moved"} -- list of events, for reference
 
--- performs a move on pacman, assumes move is correct
--- returns an event corresponding the action that took place
-function move_pac(pac_move)
-    maze[pac[1] ][pac[2] ] = '.'
-    local incs =  move_incs[pac_move]
-
-    pac[1] = pac[1] + incs[1]
-    pac[2] = pac[2] + incs[2]
-    local ev = "pac_moved"
-    if (maze[pac[1] ][pac[2] ] == 'o') then -- pacman got a treat
-        ev = "pac_got_treat"
-        treats[{pac}] = nil -- remove treat from dict
-    elseif (maze[pac[1] ][pac[2] ] == 'X') then
-        ev = "pac_got_eaten"
-    end
-
-    maze[pac[1] ][pac[2] ] = 'P' -- move the pacman
-
-    return ev
-
-end
 
 -- moves monsters; assumes monster movement is correct
 -- moves are given in format : {monster_index: _move_string_}
@@ -379,35 +384,6 @@ function is_valid_move(current_pos, move, is_monster)
 end
 
 
-
-
--- generate a random move for pacman
-function gen_rand_pac_move()
-    local can_move = false
-    for k,v in pairs(move_incs) do
-        if (k ~= "nop") then
-            if (is_valid_move(pac, k, false)) then
-                can_move = true
-                break
-            end
-        end
-    end
-
-    if (not can_move) then
-        return "nop" -- no move is possible
-    end
-
-    local move_index = math.random(#move_list - 1) -- do not try nop 
-    local move_inc = move_incs[move_list[move_index] ]
-    while (not is_valid_move(pac, move_list[move_index], false)) do
-        move_index = math.random(#move_list - 1)
-        move_inc = move_incs[move_list[move_index] ]
-    end
-
-    return move_list[move_index]
-
-end
-
 -- generate a random move for monster with _monster_index_
 function gen_rand_monster_move(monster_index)
     local m_pos = monsters[monster_index]
@@ -458,19 +434,6 @@ function re_init()
     init_maze(dim_y, dim_x, pac_pos, monster_pos, treat_pos, wall_pos)
 end
 
-
--- run a turn for pacman
-function pac_turn()
-    local ev = move_pac(gen_rand_pac_move())
-    print_maze()
-    if (ev == "pac_got_treat") then
-        score = score + 1
-    elseif (ev == "pac_got_eaten") then
-        score = score - 1
-        re_init()
-    end
-    print(ev)
-end
 
 -- run a turn for the monster
 function monster_turn()
