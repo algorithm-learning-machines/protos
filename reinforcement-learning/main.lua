@@ -19,11 +19,11 @@ cmd:text("Options:")
 cmd:option("-game", "pacman", "Game to be used")
 cmd:option("-player", "random", "Who's playing")
 cmd:option("-display", false, "Display game info")
-
+cmd:option("-sleep", 0, "Sleep")
 
 cmd:option("-episodes", 10000, "Number of episodes to be played")
-cmd:option("-evalEvery", 10, "Eval the strategy every n games")
-cmd:option("-evalEpisodes", 10, "Number of episodes to use for evaluation")
+cmd:option("-evalEvery", 200, "Eval the strategy every n games")
+cmd:option("-evalEpisodes", 20, "Number of episodes to use for evaluation")
 
 cmd:option("-seed", 666, "Seed for the random number generator")
 
@@ -38,6 +38,9 @@ cmd:option("-epsilon", 0.1, "Probability to choose a random action")
 cmd:option("-height", 10, "Maze height")
 cmd:option("-width", 10, "Maze width")
 cmd:option("-monstersNo", 4, "Number of monsters")
+cmd:option("-treatsNo", 4, "Number of monsters")
+cmd:option("-walls", "random", "Where to place walls (e.g. '1,2;1,3;2,4'")
+
 --------------------------------------------------------------------------------
 --- Parse arguments and let the hammers go (dăm drumul la ciocane)
 --------------------------------------------------------------------------------
