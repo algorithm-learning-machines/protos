@@ -23,4 +23,17 @@ function util.deepcopy(orig)
    return copy
 end
 
+
+--------------------------------------------------------------------------------
+--- getch_unix from:
+---  http://lua.2524044.n2.nabble.com/Check-for-a-keypress-td7654769.html
+--------------------------------------------------------------------------------
+
+function util.getch_unix()
+   os.execute("stty cbreak </dev/tty >/dev/tty 2>&1")
+   local key = io.read(1)
+   os.execute("stty -cbreak </dev/tty >/dev/tty 2>&1");
+   return(key)
+end
+
 return util
