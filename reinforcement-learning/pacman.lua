@@ -229,10 +229,11 @@ function PacmanState:__movePacman(action)
       return -10, "Pacman ran into monster!"
    elseif self.maze[newY][newX] == TREAT then            -- pacman grabbed treat
       self.score = self.score + 1
-      self.pacman.y, self.pacman.x = self:__getRandomEmptyCell()
+      self.pacman.y, self.pacman.x = newY, newX
       self.maze[self.pacman.y][self.pacman.x] = PACMAN
       return 1, "Pacman grabbed a cookie!"
    elseif self.maze[newY][newX] == WALL then
+      self.maze[self.pacman.y][self.pacman.x] = PACMAN           -- pacman stays
       return 0, "Pacman hit the wall!"
    else
       assert(false)
@@ -251,7 +252,7 @@ function PacmanState:__chooseMonsterMove(y, x)
       local isOK =
          not (newY < 1 or newY > self.height or newX < 1 or newX > self.width)
       if isOK then
-         if self.maze[newY][newX] == EMPTY then           -- an empty cell
+         if self.maze[newY][newX] == EMPTY then                 -- an empty cell
             local distance =
                math.abs(newY - self.pacman.y) + math.abs(newX - self.pacman.x)
             if distance < minDistance then
@@ -329,7 +330,7 @@ function PacmanState.getActions()          -- STATIC: returns the set of actions
 end
 
 function PacmanState:isFinal()               -- checks if a given state is final
-   return self.lives == 0
+   return self.lives < 1
 end
 
 function PacmanState:__getScreen()
@@ -390,6 +391,10 @@ end
 
 function PacmanState:reset()                     -- go back to the initial state
    -- TODO: not implemented
+end
+
+function PacmanState:getScore()
+   return self.score
 end
 
 return PacmanState

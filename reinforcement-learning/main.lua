@@ -44,33 +44,66 @@ torch.manualSeed(opt.seed)
 --------------------------------------------------------------------------------
 
 local Game = require(opt.game)
-local player
+local Player
 
 if opt.player == "random" then                 -- player performs random actions
-   player = function (state) return torch.random(#(Game.getActions())) end
+   Player = require("RandomPlayer")
 elseif opt.player == "human" then                      -- play from the keyboard
-   player = function (state)
-      local c = util.getch_unix()
-      if c == "w" then return state.NORTH;
-      elseif c == "a" then return state.WEST;
-      elseif c == "s" then return state.SOUTH;
-      elseif c == "d" then return state.EAST;
-      else return state.NOOP; end                                        -- noop
-   end
+   Player = require("HumanPlayer")
 end
 
-state = Game.create(opt)
-state:display()
+player = Player.create(Game)
 
-while not state:isFinal() do
-   local action = player(state)
-   oldState = state:clone()
-   reward, message = oldState:applyAction(action)
-   print(message)
-   oldState:display()
-   state = oldState
+
+--------------------------------------------------------------------------------
+--- Train and eval
+--------------------------------------------------------------------------------
+
+local episodesNo = tonumber(opt.episodes)
+local evalEvery = tonumber(opt.evalEvery)
+local evalEpisodesNo = tonumber(opt.evalEpisodes)
+local evalSessionsNo = torch.ceil(episodesNo / evalEvery)
+
+trainingScores = torch.Tensor(episodesNo)
+evalScores = torch.Tensor(evalSessionsNo)
+
+for s = 1, evalSessionsNo do
+   for e = 1, evalEvery do
+      local state = Game.create(opt)
+      local oldState, action, reward, message
+
+      if opt.display then state:display() end
+
+      while not state:isFinal() do
+         action = player:move(state, true)
+         oldState = state:clone()
+         reward, message = state:applyAction(action)
+         player:feedback(oldState, action, reward, state)
+         if opt.display then
+            print("Breaking news: " .. message)
+            state:display()
+         end
+      end -- while not state:isFinal()
+
+      trainingScores[(s-1) * evalEvery + e] = state:getScore()
+   end -- for e
+
+   local totalScore = 0
+
+   for e = 1, evalEpisodesNo do
+      local state = Game.create(opt)
+
+      if opt.verbose then state:display() end
+
+      while not state:isFinal() do
+         action = player:move(state, false)
+         reward, message = state:applyAction(action)
+      end -- while not state:isFinal()
+
+      totalScore = totalScore + state:getScore()
+   end -- for e
+
+   evalScores[s] = (totalScore / evalEpisodesNo)
 end
-
-print(state:serialize())
 
 print("Done!")
