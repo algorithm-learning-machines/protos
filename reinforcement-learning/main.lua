@@ -19,11 +19,17 @@ cmd:text("Options:")
 cmd:option("-game", "pacman", "Game to be used")
 cmd:option("-player", "random", "Who's playing")
 cmd:option("-display", false, "Display game info")
-cmd:option("-episodes", 1000, "Number of episodes to be played")
+
+
+cmd:option("-episodes", 10000, "Number of episodes to be played")
 cmd:option("-evalEvery", 10, "Eval the strategy every n games")
 cmd:option("-evalEpisodes", 10, "Number of episodes to use for evaluation")
 
 cmd:option("-seed", 666, "Seed for the random number generator")
+
+cmd:option("-discount", 0.95, "Discount factor")
+cmd:option("-learningRate", 0.1, "Learning rate")
+cmd:option("-epsilon", 0.1, "Probability to choose a random action")
 
 --------------------------------------------------------------------------------
 --- Game specific options
@@ -31,8 +37,7 @@ cmd:option("-seed", 666, "Seed for the random number generator")
 
 cmd:option("-height", 10, "Maze height")
 cmd:option("-width", 10, "Maze width")
-
-
+cmd:option("-monstersNo", 4, "Number of monsters")
 --------------------------------------------------------------------------------
 --- Parse arguments and let the hammers go (dăm drumul la ciocane)
 --------------------------------------------------------------------------------
@@ -51,6 +56,8 @@ if opt.player == "random" then                 -- player performs random actions
    Player = require("RandomPlayer")
 elseif opt.player == "human" then                      -- play from the keyboard
    Player = require("HumanPlayer")
+elseif opt.player == "Q" then
+   Player = require("QPlayer")
 end
 
 player = Player.create(Game)
@@ -90,7 +97,7 @@ for s = 1, evalSessionsNo do
    end -- for e
 
    gnuplot.figure(1)
-   gnuplot.plot({'Training scores', trainingScores[{{1, s * evalEvery}}]})
+   gnuplot.plot({'Training scores', trainingScores[{{1, s * evalEvery}}], "-"})
 
    local totalScore = 0
 
@@ -110,7 +117,7 @@ for s = 1, evalSessionsNo do
    evalScores[s] = (totalScore / evalEpisodesNo)
 
    gnuplot.figure(2)
-   gnuplot.plot({'Evaluation scores', evalScores[{{1, s}}]})
+   gnuplot.plot({'Evaluation scores', evalScores[{{1, s}}], "-"})
 
 end
 
