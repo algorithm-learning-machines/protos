@@ -25,8 +25,7 @@ function QPlayer.create(Game, opt)                       -- intialize new player
 end
 
 function QPlayer:move(state, isTraining)
-   local stateStr = state:serialize()                -- serialized state is key
-   local actions = self.Q[stateStr] or {}           -- knowns state-value pairs
+   local actions = self.Q[state] or {}               -- knowns state-value pairs
    local bestAction
 
    if (not isTraining) or (torch.rand(1)[1] >= self.epsilon) then
@@ -47,19 +46,17 @@ function QPlayer:move(state, isTraining)
 end
 
 function QPlayer:feedback(state, action, reward, nextState)
-   local stateStr = state:serialize()
-   local nextStateStr = nextState:serialize()
-   self.Q[stateStr] = self.Q[stateStr] or {}
-   local actions = self.Q[stateStr] or {}
+   self.Q[state] = self.Q[state] or {}
+   local actions = self.Q[state]
    local oldValue = actions[action]
 
-   local nextActions = self.Q[nextStateStr] or {}
-   if nextState:isFinal() then
+   local nextActions = self.Q[nextState] or {}
+   if nextState then
       if oldValue then
-         self.Q[stateStr][action] = (1-self.learningRate) * oldValue +
+         self.Q[state][action] = (1-self.learningRate) * oldValue +
             self.learningRate * reward
       else
-         self.Q[stateStr][action] = self.learningRate * reward
+         self.Q[state][action] = self.learningRate * reward
       end
    else
       local maxNext = 0
@@ -67,10 +64,10 @@ function QPlayer:feedback(state, action, reward, nextState)
          if q > maxNext then maxNext = q end
       end
       if oldValue then
-         self.Q[stateStr][action] = (1-self.learningRate) * oldValue +
+         self.Q[state][action] = (1-self.learningRate) * oldValue +
             self.learningRate * (reward + self.discount * maxNext)
       else
-         self.Q[stateStr][action] = reward + self.discount * maxNext
+         self.Q[state][action] = reward + self.discount * maxNext
       end
    end
 end

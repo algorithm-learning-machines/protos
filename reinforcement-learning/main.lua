@@ -41,6 +41,7 @@ cmd:option("-width", 10, "Maze width")
 cmd:option("-monstersNo", 4, "Number of monsters")
 cmd:option("-treatsNo", 4, "Number of monsters")
 cmd:option("-walls", "random", "Where to place walls (e.g. '1,2;1,3;2,4'")
+cmd:option("-radius", 0, "How much does the pacman see around him")
 
 --------------------------------------------------------------------------------
 --- Parse arguments and let the hammers go (dăm drumul la ciocane)
@@ -69,15 +70,18 @@ player = Player.create(Game, opt)
 if opt.justForFun then
    for ep = 1, tonumber(opt.episodes) do
       local state = Game.create(opt)
+      local repr = state:serialize()
       local action, message
       if opt.display then state:display() end
 
       while not state:isFinal() do
-         action = player:move(state, true)
+         action = player:move(repr, true)
          _, message = state:applyAction(action)
+         repr = state:serialize()
          if opt.display then
             print("Breaking news: " .. message)
             state:display()
+            print(repr)
          end
       end -- while not state:isFinal()
    end
@@ -99,18 +103,21 @@ evalScores = torch.Tensor(evalSessionsNo)
 for s = 1, evalSessionsNo do
    for e = 1, evalEvery do
       local state = Game.create(opt)
-      local oldState, action, reward, message
+      local repr = state:serialize()
+      local oldState, action, reward, message, oldRepr
 
       if opt.display then
          state:display()
+         print(repr)
          sys.sleep(tonumber(opt.sleep))
       end
 
       while not state:isFinal() do
-         action = player:move(state, true)
-         oldState = state:clone()
+         oldRepr = repr
+         action = player:move(state:serialize(), true)
          reward, message = state:applyAction(action)
-         player:feedback(oldState, action, reward, state)
+         repr = state:serialize()
+         player:feedback(oldRepr, action, reward, repr)
          if opt.display then
             print("Breaking news: " .. message)
             state:display()
@@ -132,7 +139,7 @@ for s = 1, evalSessionsNo do
       if opt.verbose then state:display() end
 
       while not state:isFinal() do
-         action = player:move(state, false)
+         action = player:move(state:serialize(), false)
          reward, message = state:applyAction(action)
       end -- while not state:isFinal()
 

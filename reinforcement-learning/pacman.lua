@@ -90,6 +90,7 @@ function PacmanState.create(opt)        -- returns the initial state of the game
          for col, cell in pairs(originalCells) do cells[col] = cell end
          self.maze[row] = cells
       end
+      self.radius = opt.radius
 
       --- 2. The walls are the same
 
@@ -117,6 +118,7 @@ function PacmanState.create(opt)        -- returns the initial state of the game
          for col = 1, self.width do cells[#cells+1] = EMPTY; end
          self.maze[#(self.maze)+1] = cells
       end
+      self.radius = opt.radius or 0
 
       --- 2. The walls
       if opt.walls ~= "random" then
@@ -376,11 +378,45 @@ end
 
 function PacmanState:serialize()                     -- serializes a given state
    local stateString = ""
-   for row = 1, self.height do
-      stateString = stateString .. table.concat(self.maze[row])
+   if self.radius == 0 then
+      for row = 1, self.height do
+         stateString = stateString .. table.concat(self.maze[row])
+      end
+      stateString = stateString .. "|" .. self.lives
+      return stateString
+   else
+      local topPadding = math.max(0, self.radius - self.pacman.y + 1)
+      local bottomPadding =
+         math.max(0, self.pacman.y - self.height + self.radius)
+
+      local leftPadding = math.max(0, self.radius - self.pacman.x + 1)
+      local rightPadding = math.max(0, self.pacman.x - self.width + self.radius)
+
+      local startRow = math.max(1, self.pacman.y - self.radius)
+      local stopRow = math.min(self.height, self.pacman.y + self.radius)
+
+      local startCol = math.max(1, self.pacman.x - self.radius)
+      local stopCol = math.min(self.width, self.pacman.x + self.radius)
+
+      if topPadding > 0 then
+         stateString = stateString ..
+            string.rep(string.rep(WALL, self.radius*2+1) .. "\n", topPadding)
+      end
+
+      for row = startRow, stopRow do
+         stateString = stateString .. string.rep(WALL, leftPadding)
+         for col = startCol, stopCol do
+            stateString = stateString .. self.maze[row][col]
+         end
+         stateString = stateString .. string.rep(WALL, rightPadding) .. "\n"
+      end
+
+      if bottomPadding > 0 then
+         stateString = stateString ..
+            string.rep(string.rep(WALL, self.radius*2+1) .. "\n", bottomPadding)
+      end
+      return stateString
    end
-   stateString = stateString .. "|" .. self.lives
-   return stateString
 end
 
 function PacmanState:clone()              -- creates a copy of the current state
