@@ -21,6 +21,7 @@ cmd:option("-player", "random", "Who's playing")
 cmd:option("-display", false, "Display game info")
 cmd:option("-sleep", 0, "Sleep")
 
+cmd:option("-justForFun", false, "No training, no plots")
 cmd:option("-episodes", 10000, "Number of episodes to be played")
 cmd:option("-evalEvery", 200, "Eval the strategy every n games")
 cmd:option("-evalEpisodes", 20, "Number of episodes to use for evaluation")
@@ -63,8 +64,25 @@ elseif opt.player == "Q" then
    Player = require("QPlayer")
 end
 
-player = Player.create(Game)
+player = Player.create(Game, opt)
 
+if opt.justForFun then
+   for ep = 1, tonumber(opt.episodes) do
+      local state = Game.create(opt)
+      local action, message
+      if opt.display then state:display() end
+
+      while not state:isFinal() do
+         action = player:move(state, true)
+         _, message = state:applyAction(action)
+         if opt.display then
+            print("Breaking news: " .. message)
+            state:display()
+         end
+      end -- while not state:isFinal()
+   end
+   os.exit()
+end
 
 --------------------------------------------------------------------------------
 --- Train and eval
@@ -83,7 +101,10 @@ for s = 1, evalSessionsNo do
       local state = Game.create(opt)
       local oldState, action, reward, message
 
-      if opt.display then state:display() end
+      if opt.display then
+         state:display()
+         sys.sleep(tonumber(opt.sleep))
+      end
 
       while not state:isFinal() do
          action = player:move(state, true)
@@ -93,6 +114,7 @@ for s = 1, evalSessionsNo do
          if opt.display then
             print("Breaking news: " .. message)
             state:display()
+            sys.sleep(tonumber(opt.sleep))
          end
       end -- while not state:isFinal()
 
