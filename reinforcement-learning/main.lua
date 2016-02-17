@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 require("torch")
+require("gnuplot")
 
 local util = require("util")
 
@@ -88,6 +89,9 @@ for s = 1, evalSessionsNo do
       trainingScores[(s-1) * evalEvery + e] = state:getScore()
    end -- for e
 
+   gnuplot.figure(1)
+   gnuplot.plot({'Training scores', trainingScores[{{1, s * evalEvery}}]})
+
    local totalScore = 0
 
    for e = 1, evalEpisodesNo do
@@ -104,6 +108,10 @@ for s = 1, evalSessionsNo do
    end -- for e
 
    evalScores[s] = (totalScore / evalEpisodesNo)
+
+   gnuplot.figure(2)
+   gnuplot.plot({'Evaluation scores', evalScores[{{1, s}}]})
+
 end
 
 print("Done!")
