@@ -29,7 +29,7 @@ local actionEffects = {          -- the effects of an action on pacman's postion
    north = { dy = -1, dx =  0},                                    -- move north
    east  = { dy =  0, dx =  1},                                     -- move east
    south = { dy =  1, dx =  0},                                    -- move south
-   west  = { dy =  1, dx = -1},                                     -- move west
+   west  = { dy =  0, dx = -1},                                     -- move west
    noop  = { dy =  0, dx =  0}                                     -- do nothing
 }
 
@@ -52,6 +52,13 @@ local treatLife = 7                     -- for how many rounds does a candy live
 
 local PacmanState = {}
 PacmanState.__index = PacmanState
+
+
+PacmanState.NORTH = 1
+PacmanState.EAST = 2
+PacmanState.SOUTH = 3
+PacmanState.WEST = 4
+PacmanState.NOOP = 5
 
 function PacmanState:__getRandomEmptyCell()
    local row = torch.random(self.height)
