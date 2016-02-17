@@ -225,11 +225,76 @@ function PacmanState:__movePacman(action)
       self.pacman.y, self.pacman.x = self:__getRandomEmptyCell()
       self.maze[self.pacman.y][self.pacman.x] = PACMAN
       return 1, "Pacman grabbed a cookie!"
+   elseif self.maze[newY][newX] == WALL then
+      return 0, "Pacman hit the wall!"
+   else
+      assert(false)
    end
 end
 
+
+function PacmanState:__chooseMonsterMove(y, x)
+   local bestActions = {{y  = y, x = x}}                  -- best action is noop
+   local minDistance = self.width + self.height
+
+   for _, actionName in pairs(actionNames) do
+      local dCoords = actionEffects[actionName]
+      local newY = dCoords.dy + y                          -- compute target row
+      local newX = dCoords.dx + x                          -- compute target col
+      local isOK =
+         not (newY < 1 or newY > self.height or newX < 1 or newX > self.width)
+      if isOK then
+         if self.maze[newY][newX] == EMPTY then           -- an empty cell
+            local distance =
+               math.abs(newY - self.pacman.y) + math.abs(newX - self.pacman.x)
+            if distance < minDistance then
+               bestActions = {{y  = newY, x = newX}}
+               minDistance = distance
+            elseif distance == minDistance then
+               bestActions[#bestActions + 1] = {y  = newY, x = newX}
+            end
+         elseif self.maze[newY][newX] == PACMAN then
+            return newY, newX                     -- shortcut if pacman in range
+         end
+      end
+   end -- for
+   local randomAction = torch.random(#bestActions)
+   return bestActions[randomAction].y, bestActions[randomAction].x
+end
+
+function PacmanState:__moveMonsters()
+   local reward = 0
+   local message = "monsters chase the pacman"
+   local monstersOrder = torch.randperm(#(self.monsters))
+   for i = 1, #(self.monsters) do
+      local idx = monstersOrder[i]
+      self.maze[self.monsters[idx].y][self.monsters[idx].x] = EMPTY
+      local newY, newX =
+         self:__chooseMonsterMove(self.monsters[idx].y, self.monsters[idx].x)
+      if self.maze[newY][newX] == EMPTY then
+         self.monsters[idx].y, self.monsters[idx].x = newY, newX
+         self.maze[newY][newX] = MONSTER
+      elseif self.maze[newY][newX] == PACMAN then
+         self.monsters[idx].y, self.monsters[idx].x = newY, newX
+         self.maze[newY][newX] = MONSTER
+         self.lives = self.lives - 1                             -- he dies once
+         self.score = self.score - 10                         -- loses 10 points
+         self.pacman.y, self.pacman.x = self:__getRandomEmptyCell()
+         self.maze[self.pacman.y][self.pacman.x] = PACMAN            -- respawns
+         reward = reward - 10
+         message = "monsters got the pacman"
+      else
+         assert(false)
+      end
+   end
+   return reward, message
+end
+
 function PacmanState:applyAction(action)      -- player performs action in state
-   reward, message = self:__movePacman(action)
+   local reward1, message1 = self:__movePacman(action)
+   local reward2, message2 = self:__moveMonsters()
+   local reward = reward1 + reward2
+   local message = message1 .. message2
    -- self.t = self.t + 1
    return reward, message                                      -- returns reward
 end
@@ -311,118 +376,6 @@ return PacmanState
 event_list = {"pac_moved", "pac_got_treat", "pac_got_eaten", "monsters_moved"} -- list of events, for reference
 
 
--- moves monsters; assumes monster movement is correct
--- moves are given in format : {monster_index: _move_string_}
--- returns event
-function move_monsters(monster_moves)
-    local ev = "monsters_moved"
-    for k,v in pairs(monster_moves) do
-        local incs = move_incs[v]
-        local old_y = monsters[k][1]
-        local old_x = monsters[k][2]
-        maze[old_y][old_x] = '.'
-
-        monsters[k][1] =  old_y + incs[1]
-        monsters[k][2] =  old_x + incs[2]
-
-        local my = monsters[k][1]
-        local mx = monsters[k][2]
-        if (maze[my][mx] == 'P') then-- they killed Pacman!
-            ev = "pac_got_eaten"
-        end
-        maze[my][mx] = 'X'
-    end
-    return ev
-end
-
--- pretty prints the current maze
-function print_maze()
-    local maze_y = #maze
-    local maze_x = #maze[1]
-    for i=1,maze_x + 2 do
-        io.write("* ")
-    end
-    io.write("\n")
-    for i=1,maze_y do
-        io.write("* ")
-        io.flush()
-        for j=1,maze_x do
-            io.write(maze[i][j].." ")
-        end
-        io.write("*\n")
-    end
-    for i=1,maze_x + 2 do
-        io.write("* ")
-    end
-    io.write("score: "..score.."\n")
-end
-
--- checks if move is a valid
--- convention: monster cannot step on treat
--- we assume pacman may be stupid enough to step on monster
--- returns true if move valid, false otherwise
-function is_valid_move(current_pos, move, is_monster)
-    local move_inc = move_incs[move]
-    local ny = current_pos[1] + move_inc[1]
-    local nx = current_pos[2] + move_inc[2]
-
-    local dim_y = #maze
-    local dim_x = #maze[1]
-    if (ny > dim_y or nx > dim_x or  ny < 1 or nx < 1) then
-        return false
-    end
-
-    if (maze[ny][nx] == '*') then
-        return false
-    end
-
-    if (is_monster and maze[ny][nx] == 'o') then
-        return false
-    end
-
-    return true
-end
-
-
--- generate a random move for monster with _monster_index_
-function gen_rand_monster_move(monster_index)
-    local m_pos = monsters[monster_index]
-    local can_move = false
-    for k,v in pairs(move_incs) do
-        if (k ~= "nop") then
-            if (is_valid_move(m_pos, k, true)) then
-                can_move = true
-                break
-            end
-        end
-    end
-
-    if (not can_move) then
-        return "nop" -- no move is possible
-    end
-
-    local move_index = math.random(#move_list - 1) -- do not try nop 
-    local move_inc = move_incs[move_list[move_index] ]
-    while (not is_valid_move(m_pos, move_list[move_index], true)) do
-        move_index = math.random(#move_list - 1)
-        move_inc = move_incs[move_list[move_index] ]
-    end
-
-    return move_list[move_index]
-
-end
-
--- generate moves for all monsters
-function gen_all_monster_moves()
-    local monster_moves = {}
-    for k,v in pairs(monsters) do
-        local m = gen_rand_monster_move(k)
-        monster_moves[k] = m
-    end
-    return monster_moves
-end
-
-
 -- reinit maze to initial state
 function re_init()
     local pac_pos = {3,4}
@@ -434,17 +387,6 @@ function re_init()
     init_maze(dim_y, dim_x, pac_pos, monster_pos, treat_pos, wall_pos)
 end
 
-
--- run a turn for the monster
-function monster_turn()
-    local ev = move_monsters(gen_all_monster_moves())
-    print_maze()
-    if (ev == "pac_got_eaten") then
-        score = score - 1
-        re_init()
-    end
-    print(ev)
-end
 
 -- get all free cells in maze
 function get_free_positions()
