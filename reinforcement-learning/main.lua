@@ -74,6 +74,8 @@ elseif opt.player == "Q" then
    Player = require("QPlayer")
 elseif opt.player == "DQN" then
    Player = require("DeepQPlayer")
+elseif opt.player == "R" then
+   Player = require("REINFORCEPlayer")
 else
    assert(false, "Not implemented")
 end
@@ -152,7 +154,7 @@ for s = 1, evalSessionsNo do
          else
             repr = state:serialize()
          end
-         player:feedback(oldRepr, action, reward, repr)
+         player:feedback(oldRepr, action, reward, repr, state)
          if opt.display then
             print("Breaking news: " .. message)
             state:display()
