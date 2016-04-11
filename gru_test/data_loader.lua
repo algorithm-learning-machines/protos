@@ -20,12 +20,12 @@ function DataLoader:getNext(isForTest)
    end
 
    local x = torch.rand(self.input_size + self.address_size)
-   local t = torch.Tensor(x:size())
+   local t = torch.Tensor(self.address_size)
    t[{{1, self.input_size}}]:copy(x[{{1, self.input_size}}])
    x[{{self.input_size + 1, self.input_size + self.address_size}}]:fill(0)
    x[self.input_size + n] = 1
-   t[{{self.input_size + 1, self.input_size + self.address_size}}]:fill(0)
-   t[self.input_size + n + 1] = 1
+   t:fill(0)
+   t[n + 1] = 1
 
    return x, t
 end
