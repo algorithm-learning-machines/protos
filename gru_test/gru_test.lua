@@ -4,15 +4,17 @@ require 'rnn'
 require 'optim'
 
 local data_loader = require("data_loader")
-data_loader:__init(10, 20, 10)
+data_loader:__init(10, 20, 0)
 
-local model=  nn.GRU(data_loader.v_size + data_loader.address_size,
-                        data_loader.address_size)
+local model = nn.Sequential();
+model:add(nn.LSTM(data_loader.v_size + data_loader.address_size,
+data_loader.v_size + data_loader.address_size, 10))
+ 
 local criterion = nn.MSECriterion()
 
 params, grad_params = model:getParameters()
 params:zero()
-config = {learningRate = 1e-5, momentum = 0.9}
+config = {}
 dataset = {}
 function dataset:size() return 1000 end
 for i=1, dataset:size() do
@@ -29,8 +31,7 @@ function train()
             end
 
             grad_params:zero()
-
-            local input = dataset[t][1]
+local input = dataset[t][1]
             local target = dataset[t][2]
 
             local output = model:forward(input)
@@ -45,7 +46,7 @@ function train()
         end
 
         optim.adam(feval, params, config)
-        print("finished sgd "..t)
+        print("finished adam "..t)
     end
 end
 for j = 1,10 do
@@ -58,7 +59,15 @@ eval_eps = 100
 for i=1,100 do
    local x, t = data_loader:getNext(true)
    local out = model:forward(x)
-   local err = criterion:forward(out, t)
+   local err = criterion:forward(out, x)
+   --print(t
+   --print(out)
+   --print("------")
+   print("OUT")
+   print(out)
+   print("T")
+   print(t)
+   print("END")
    _, ix_out = out:max(1)
    _, ix_t = t:max(1)
    if ix_out[1] ~= ix_t[1] then
