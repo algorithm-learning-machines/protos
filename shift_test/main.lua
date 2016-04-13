@@ -23,11 +23,11 @@ dataset, exclusionList = data_loader:getSet(nil, 50)
 evalset = data_loader:getSet(exclusionList, 20)
 function dataset:size() return 50 end
 function evalset:size() return 20 end
---print(dataset[1][1])
-model:training()
+
 --------------------------------------------------------------------------------
 -- Train procedure
 --------------------------------------------------------------------------------
+model:training()
 function train()
     for t=1,dataset:size() do
         local feval = function(x)
@@ -67,7 +67,7 @@ local good = evalset:size()
 for i in seq.range(1, evalset:size()) do
    local out = model:forward(evalset[i][1])
    local err = criterion:forward(out, evalset[i][2])
-   local val,ix_o = out:max(2)
+   local val, ix_o = out:max(1)
    local _, ix_t = evalset[i][2]:max(1)
    if ix_o[1] ~= ix_t[1] then
       good = good - 1
