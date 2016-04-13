@@ -9,15 +9,26 @@ local class = require("class")
 local ShiftGenerator = class("ShiftLearn")
 
 function ShiftGenerator.create(vecSize)
+
    -----------------------------------------------------------------------------
    -- Input def
    -----------------------------------------------------------------------------
-   print(vecSize)
    local sh = nn.Identity()()
    local x = nn.Identity()()
+   local x_sh = nn.JoinTable(1)({sh, x})
 
-   local learner2D = nn.Linear(vecSize + vecSize, vecSize * vecSize)({sh, x})
-   local fin = nn.MM()({nn.Reshape(1, vecSize)(x), learner2D})
+   -----------------------------------------------------------------------------
+   -- Internal shift matrix
+   -----------------------------------------------------------------------------
+   local learner2D = nn.Sigmoid()(nn.Linear(vecSize + vecSize,
+      vecSize * vecSize)(x_sh))
+
+   -----------------------------------------------------------------------------
+   -- Shifted Tensor
+   -----------------------------------------------------------------------------
+   local fin = nn.SoftMax()(nn.Sigmoid()(nn.MM()({nn.Reshape(1, vecSize)(x),
+      nn.Reshape(vecSize, vecSize)(learner2D)})))
+
    return nn.gModule({sh, x}, {fin})
 
 end
