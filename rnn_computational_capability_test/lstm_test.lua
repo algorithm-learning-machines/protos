@@ -4,7 +4,7 @@ require 'rnn'
 require 'optim'
 
 local data_loader = require("data_loader")
-data_loader:__init(10, 20, 0)
+data_loader:__init(15, 20, 0)
 
 local model = nn.Sequential();
 model:add(nn.LSTM(data_loader.v_size + data_loader.address_size,
@@ -31,16 +31,16 @@ function train()
             end
 
             grad_params:zero()
-local input = dataset[t][1]
+            local input = dataset[t][1]
             local target = dataset[t][2]
 
             local output = model:forward(input)
             local err = criterion:forward(output, target)
-
+            print(err)
             local dfdo = criterion:backward(output, target)
 
             model:backward(input, dfdo)
-            grad_params:div(input:size(1))
+            --grad_params:div(input:size(1))
 
             return err, grad_params
         end
@@ -60,14 +60,6 @@ for i=1,100 do
    local x, t = data_loader:getNext(true)
    local out = model:forward(x)
    local err = criterion:forward(out, x)
-   --print(t
-   --print(out)
-   --print("------")
-   print("OUT")
-   print(out)
-   print("T")
-   print(t)
-   print("END")
    _, ix_out = out:max(1)
    _, ix_t = t:max(1)
    if ix_out[1] ~= ix_t[1] then
@@ -75,4 +67,3 @@ for i=1,100 do
    end
 end
 print(eval_eps)
---print(data_loader:getNext())
