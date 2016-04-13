@@ -30,8 +30,9 @@ function ShiftGenerator.create(vecSize)
    -----------------------------------------------------------------------------
    local fin = nn.SoftMax()(nn.Sigmoid()(nn.MM()({nn.Reshape(1, vecSize)(x),
       nn.Reshape(vecSize, vecSize)(learner2D)})))
+   local res_fin = nn.Squeeze()(fin)
 
-   return nn.gModule({sh, x}, {fin})
+   return nn.gModule({sh, x}, {res_fin})
 
 end
 

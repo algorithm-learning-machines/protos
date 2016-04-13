@@ -24,7 +24,7 @@ evalset = data_loader:getSet(exclusionList, 20)
 function dataset:size() return 50 end
 function evalset:size() return 20 end
 --print(dataset[1][1])
-
+model:training()
 --------------------------------------------------------------------------------
 -- Train procedure
 --------------------------------------------------------------------------------
@@ -40,11 +40,13 @@ function train()
             local target = dataset[t][2]
 
             local output = model:forward(input)
+
             local err = criterion:forward(output, target)
 
             local dfdo = criterion:backward(output, target)
 
             model:backward(input, dfdo)
+            print("train "..err)
             return err, grad_params
         end
 
@@ -53,7 +55,7 @@ function train()
     end
 end
 
-for j=1,3 do
+for j=1,5 do
     train()
 end
 
@@ -64,11 +66,13 @@ local good = evalset:size()
 
 for i in seq.range(1, evalset:size()) do
    local out = model:forward(evalset[i][1])
-   local val,ix_o = out:t():max(1)
+   local err = criterion:forward(out, evalset[i][2])
+   local val,ix_o = out:max(2)
    local _, ix_t = evalset[i][2]:max(1)
    if ix_o[1] ~= ix_t[1] then
       good = good - 1
    end
+   print("eval "..err)
 end
 --------------------------------------------------------------------------------
 -- number of correct evaluations
