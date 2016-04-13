@@ -1,47 +1,63 @@
+--------------------------------------------------------------------------------
+-- Dataset for address shifting
+-- address to shift and shift_index are one of k
+-- target -> shifted_address
+--------------------------------------------------------------------------------
+
 require "torch"
 require "bit"
+require "pl.tablex"
+require "pl.seq"
+List = require "pl.List"
 
 local class = require("class")
 
 local DataLoaderBits = class("DataLoaderBits")
 
-function DataLoaderBits:__init(train_limit, test_limit, bits)
-   self.train_limit = train_limit or 20
-   self.test_limit = test_limit or 50
-   self.bits = bits or 8
+function DataLoaderBits:__init(bits)
+   self.bits = bits or 200
 end
 
+--------------------------------------------------------------------------------
+-- Return Set
+--------------------------------------------------------------------------------
+function DataLoaderBits:getSet(exclusionList, exampleNum)
+   local ix, dep
 
-function DataLoaderBits:getNext(isForTest)
-   local n, d
-   if isForTest then
-      n = torch.random(self.test_limit - 1)
-   else
-      n = torch.random(self.train_limit - 1)
+   exclusionList = exclusionList or List{}
+   currentList = List{}
+   trainList = List{}
+   targetList = List{}
+
+   for i in seq.range(1,exampleNum) do
+      local inEx = true
+      while inEx == true do
+         inEx = false
+         ix = torch.random(self.bits)
+         dep = torch.random(self.bits)
+         if exclusionList:contains(List{ix,dep}) or
+            currentList:contains(List{ix,dep}) then
+            inEx = true
+         end
+      end
+      currentList:put(List{ix, dep})
+
+      local d_vec = torch.zeros(self.bits)
+      d_vec[dep] = 1
+      local x = torch.zeros(self.bits)
+      x[ix] = 1
+      local t = torch.zeros(self.bits)
+      ix_shift = (ix + dep - 1) % self.bits + 1 -- one based modulo 
+      t[ix_shift] = 1
+
+      trainList:put(List{x, d_vec})
+      targetList:put(t)
    end
 
-   local d_numeric = torch.random(1, self.bits)
-   d_vec = torch.zeros(self.bits)
-   d_vec[d_numeric] = 1
-   local b = self.bits
-   local x = __numToBits(n, b)
-   local t = __numToBits(bit.lshift(n, d_numeric), b)
+ 
 
-   return {x, d_vec}, t
+   return seq.copy2(seq.zip(trainList,targetList)), currentList 
 
-end
-
-
-function __numToBits(num, bits)
-   local bitVec = torch.Tensor(bits, 1):fill(0)
-   local i_bit = 1
-   while num ~= 0 do
-      local b = bit.band(num, 1)
-      bitVec[i_bit][1] = b
-      num = bit.rshift(num, 1)
-      i_bit = i_bit + 1
-   end
-   return bitVec
 end
 
 

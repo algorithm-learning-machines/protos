@@ -1,16 +1,14 @@
 require "torch"
+require "optim"
 require "nn"
+require "pl.seq"
 
 local ShiftLearn = require("ShiftLearn")
 local data_creator = require("ShiftDataset")
-local data_loader = data_creator()
+local data_loader = data_creator(100)
 
-local model = ShiftLearn.create(3)
+local model = ShiftLearn.create(100)
 
-local sh = torch.zeros(3)
-sh[1] = 1
-local x = torch.zeros(3)
-x[1] = 1
 
 local criterion = nn.MSECriterion()
 
@@ -21,12 +19,11 @@ config = {}
 --------------------------------------------------------------------------------
 -- Dataset definition
 --------------------------------------------------------------------------------
-dataset = {}
-function dataset:size() return 1000 end
-for i=1, dataset:size() do
-   local x, t = data_loader:getNext()
-   dataset[i] = {x, t}
-end
+dataset, exclusionList = data_loader:getSet(nil, 50) 
+evalset = data_loader:getSet(exclusionList, 20)
+function dataset:size() return 50 end
+function evalset:size() return 20 end
+--print(dataset[1][1])
 
 --------------------------------------------------------------------------------
 -- Train procedure
@@ -48,8 +45,6 @@ function train()
             local dfdo = criterion:backward(output, target)
 
             model:backward(input, dfdo)
-            grad_params:div(input:size(1))
-
             return err, grad_params
         end
 
@@ -58,12 +53,29 @@ function train()
     end
 end
 
-for j = 1,10 do
+for j=1,3 do
     train()
 end
 
+--------------------------------------------------------------------------------
+-- Eval procedure
+--------------------------------------------------------------------------------
+local good = evalset:size()
 
-print(model:forward({sh, x}))
+for i in seq.range(1, evalset:size()) do
+   local out = model:forward(evalset[i][1])
+   local val,ix_o = out:t():max(1)
+   local _, ix_t = evalset[i][2]:max(1)
+   if ix_o[1] ~= ix_t[1] then
+      good = good - 1
+   end
+end
+--------------------------------------------------------------------------------
+-- number of correct evaluations
+--------------------------------------------------------------------------------
+print(good)
+
+
 
 
 

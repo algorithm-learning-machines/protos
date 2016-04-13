@@ -20,8 +20,10 @@ function ShiftGenerator.create(vecSize)
    -----------------------------------------------------------------------------
    -- Internal shift matrix
    -----------------------------------------------------------------------------
-   local learner2D = nn.Sigmoid()(nn.Linear(vecSize + vecSize,
-      vecSize * vecSize)(x_sh))
+   local learner2D = 
+      nn.Sigmoid()(nn.Linear(2 * (vecSize + vecSize), vecSize * vecSize)( 
+      nn.Sigmoid()(nn.Linear(vecSize + vecSize, 2 * (vecSize + vecSize))(x_sh)
+      )))
 
    -----------------------------------------------------------------------------
    -- Shifted Tensor
